@@ -137,6 +137,12 @@ fn merkle_tree_iteration(src: &[[u8; 32]], dst: &mut Vec<[u8; 32]>) {
         let left = src[src_i];
         let right = src.get(src_i + 1).copied().unwrap_or(left);
 
+        let (left, right) = if left <= right {
+            (left, right)
+        } else {
+            (right, left)
+        };
+
         dst[dst_i] = keccak::hashv(&[&left, &right]).0;
 
         src_i += 2;
@@ -155,6 +161,12 @@ fn merkle_tree_iteration_inplace(dst: &mut Vec<[u8; 32]>) {
     while src_i < dst.len() {
         let left = dst[src_i];
         let right = dst.get(src_i + 1).copied().unwrap_or(left);
+
+        let (left, right) = if left <= right {
+            (left, right)
+        } else {
+            (right, left)
+        };
 
         dst[dst_i] = keccak::hashv(&[&left, &right]).0;
 
