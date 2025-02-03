@@ -108,6 +108,30 @@ pub(crate) fn process_instruction(
     Ok(())
 }
 
+macro_rules! merkle_tree_hash_iteration {
+    ($src:expr, $dst:expr) => {{
+        let mut src_i = 0;
+        let mut dst_i = 0;
+        while src_i < $src.len() {
+            let left = $src[src_i];
+            let right = $src.get(src_i + 1).copied().unwrap_or(left);
+
+            let (left, right) = if left <= right {
+                (left, right)
+            } else {
+                (right, left)
+            };
+
+            $dst[dst_i] = keccak::hashv(&[&left, &right]).0;
+
+            src_i += 2;
+            dst_i += 1;
+        }
+
+        $dst.truncate(dst_i);
+    }};
+}
+
 /// Compute the Merkle root from the given list of leaves. The leaves are not
 /// hashed. If there's an odd number of nodes in a level, duplicates the last
 /// node.
@@ -121,60 +145,12 @@ fn compute_merkle_root(leaves: &[[u8; 32]]) -> [u8; 32] {
     let mut row = vec![[0; 32]; (leaves.len() + 1) / 2];
 
     // Perform two types of iteration to avoid cloning the entire array of leaves.
-    merkle_tree_iteration(leaves, &mut row);
+    merkle_tree_hash_iteration!(leaves, row);
     while row.len() > 1 {
-        merkle_tree_iteration_inplace(&mut row);
+        merkle_tree_hash_iteration!(row, row);
     }
 
     row[0]
-}
-
-#[inline]
-fn merkle_tree_iteration(src: &[[u8; 32]], dst: &mut Vec<[u8; 32]>) {
-    let mut src_i = 0;
-    let mut dst_i = 0;
-    while src_i < src.len() {
-        let left = src[src_i];
-        let right = src.get(src_i + 1).copied().unwrap_or(left);
-
-        let (left, right) = if left <= right {
-            (left, right)
-        } else {
-            (right, left)
-        };
-
-        dst[dst_i] = keccak::hashv(&[&left, &right]).0;
-
-        src_i += 2;
-        dst_i += 1;
-    }
-
-    dst.truncate(dst_i);
-}
-
-/// Same as `merkle_tree_iteration`, but src and dst are the same array.
-/// It's a different function to please the borrow checker.
-#[inline]
-fn merkle_tree_iteration_inplace(dst: &mut Vec<[u8; 32]>) {
-    let mut src_i = 0;
-    let mut dst_i = 0;
-    while src_i < dst.len() {
-        let left = dst[src_i];
-        let right = dst.get(src_i + 1).copied().unwrap_or(left);
-
-        let (left, right) = if left <= right {
-            (left, right)
-        } else {
-            (right, left)
-        };
-
-        dst[dst_i] = keccak::hashv(&[&left, &right]).0;
-
-        src_i += 2;
-        dst_i += 1;
-    }
-
-    dst.truncate(dst_i);
 }
 
 #[cfg(test)]
