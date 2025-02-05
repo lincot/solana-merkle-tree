@@ -21,11 +21,11 @@ pub struct InsertLeaf {
 
 /// Processes an instruction.
 ///
-/// Accounts Expected:
-/// 0. `[writable]` The Merkle tree PDA.
-/// 1. `[signer]`   The Merkle tree "owner" (used in seeds).
+/// Accounts expected:
+/// 0. `[writable]`         The Merkle tree PDA.
+/// 1. `[signer]`           The Merkle tree owner.
 /// 2. `[writable, signer]` The payer.
-/// 3. `[]`         System program.
+/// 3. `[]`                 System program.
 pub(crate) fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -50,7 +50,7 @@ pub(crate) fn process_instruction(
     if merkle_tree_info.key != &merkle_tree_pda {
         return Err(ProgramError::InvalidArgument);
     }
-    let merkle_tre_seeds = &[
+    let merkle_tree_seeds = &[
         &b"merkle_tree"[..],
         &owner_info.key.to_bytes(),
         &[merkle_tree_bump],
@@ -94,7 +94,7 @@ pub(crate) fn process_instruction(
     invoke_signed(
         &ix,
         &[payer_info.clone(), merkle_tree_info.clone()],
-        &[merkle_tre_seeds],
+        &[merkle_tree_seeds],
     )?;
 
     merkle_tree.leaves.push(instruction.leaf);
