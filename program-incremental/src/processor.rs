@@ -196,13 +196,14 @@ fn remove_leaf<'info>(
     **merkle_tree_info.try_borrow_mut_lamports()? -= extra_lamports;
     **payer_info.try_borrow_mut_lamports()? += extra_lamports;
 
-    let last_leaf = {
-        let merkle_tree_data = &mut merkle_tree_info.try_borrow_mut_data()?;
-        let (_, node_data) = merkle_tree_data.split_at_mut(MerkleTreeHeader::SPACE);
-        *get_node(node_data, get_leaf_index(depth, last_leaf_n))
-    };
-
-    modify_leaf_(merkle_tree_info, depth, leaf_n, last_leaf)?;
+    if leaf_n != last_leaf_n {
+        let last_leaf = {
+            let merkle_tree_data = &mut merkle_tree_info.try_borrow_mut_data()?;
+            let (_, node_data) = merkle_tree_data.split_at_mut(MerkleTreeHeader::SPACE);
+            *get_node(node_data, get_leaf_index(depth, last_leaf_n))
+        };
+        modify_leaf_(merkle_tree_info, depth, leaf_n, last_leaf)?;
+    }
     modify_leaf_(merkle_tree_info, depth, last_leaf_n, [0; 32])?;
 
     merkle_tree_info.realloc(size, false)?;
@@ -462,6 +463,20 @@ mod tests {
         banks_client.process_transaction(tx).await.unwrap();
         let (root, leaves) = fetch_tree(&banks_client, merkle_tree_pda).await;
         assert_eq!(leaves, expected_leaves[..2]);
+        assert_eq!(root, compute_merkle_root(&expected_leaves));
+
+        expected_leaves[1] = [0; 32];
+        let tx = get_tx(
+            &banks_client,
+            &payer,
+            &owner,
+            merkle_tree_pda,
+            MerkleTreeInstruction::RemoveLeaf { index: 1 },
+        )
+        .await;
+        banks_client.process_transaction(tx).await.unwrap();
+        let (root, leaves) = fetch_tree(&banks_client, merkle_tree_pda).await;
+        assert_eq!(leaves, expected_leaves[..1]);
         assert_eq!(root, compute_merkle_root(&expected_leaves));
     }
 
