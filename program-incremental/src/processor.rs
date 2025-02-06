@@ -131,6 +131,11 @@ fn append_leaf<'info>(
         let merkle_tree_data = &mut merkle_tree_info.try_borrow_mut_data()?;
         let (mut header_data, _) = merkle_tree_data.split_at_mut(MerkleTreeHeader::SPACE);
         let mut tree_header = MerkleTreeHeader::try_from_slice(header_data)?;
+
+        if tree_header.len >= 1 << tree_header.depth {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         tree_header.len += 1;
         tree_header.serialize(&mut header_data)?;
         (tree_header.depth as u32, tree_header.len - 1)
